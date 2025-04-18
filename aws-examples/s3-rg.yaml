@@ -1,0 +1,39 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: s3bucket
+  namespace: kro
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: S3Bucket
+    spec:
+      name: string | required=true
+      versioning: string | default="Enabled"
+      transition: integer | default=30
+      expiration: integer | default=60
+
+  resources:
+  - id: s3bucket
+    template:
+      apiVersion: s3.services.k8s.aws/v1alpha1
+      kind: Bucket
+      metadata:
+        name: ${schema.spec.name}
+      spec:
+        name: ${schema.spec.name}
+        versioning:
+          status: ${schema.spec.versioning}
+        lifecycle:
+          rules:
+          - id: "object-lifecycle-rule"
+            transitions:
+            - days: ${schema.spec.transition}
+              storageClass: "Glacier"
+            status: "Enabled"
+            prefix: "/"
+          - id: "object-expiration-rule"  
+            expiration: 
+              days: ${schema.spec.expiration}
+            status: "Enabled"
+            prefix: "/"

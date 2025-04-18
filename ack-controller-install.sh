@@ -12,7 +12,7 @@ service account.
 '
 declare SERVICE="$1"
 declare AWS_REGION="eu-west-1"
-declare ACK_SYSTEM_NAMESPACE="ack-system"
+declare ACK_SYSTEM_NAMESPACE="kro"
 
 install(){
   
@@ -51,7 +51,7 @@ permissions(){
   # IRSA for your Kubernetes Cluster.                       #
   ###########################################################
   
-  declare EKS_CLUSTER_NAME="eks-cluster-for-ack"
+  declare EKS_CLUSTER_NAME="kro-eks"
   eksctl utils associate-iam-oidc-provider --cluster ${EKS_CLUSTER_NAME} --region ${AWS_REGION} --approve
 
   echo "===================================================="
