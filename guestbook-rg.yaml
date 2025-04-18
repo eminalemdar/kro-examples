@@ -1,0 +1,172 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: guestbook-rgd
+spec:
+  # CRD Definition
+  schema:
+    apiVersion: v1alpha1
+    kind: Guestbook
+    spec:
+      name: string
+      redisLeaderReplicas: integer | default=1
+      redisLeaderImage: string | default="docker.io/redis:6.0.5"
+      redisLeaderName: string | default="redis-leader"
+      redisLeaderSvcName: string | default="redis-leader-svc"
+      redisLeaderSvcPort: integer | default=6379
+      redisFollowerReplicas: integer | default=2
+      redisFollowerImage: string | default="us-docker.pkg.dev/google-samples/containers/gke/gb-redis-follower:v2"
+      redisFollowerName: string | default="redis-follower"
+      redisFollowerSvcName: string | default="redis-follower-svc"
+      redisFollowerSvcPort: integer | default=6379
+      frontendReplicas: integer | default=1
+      frontendImage: string | default="us-docker.pkg.dev/google-samples/containers/gke/gb-frontend:v5"
+      frontendName: string | default="frontend"
+      frontendSvcName: string | default="frontend-svc"
+      frontendSvcPort: integer | default=80
+    status:
+      state: string
+
+  resources:
+    - id: redisLeader
+      template: 
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.spec.redisLeaderName}
+          labels:
+            app: redis
+            role: leader
+            tier: backend
+        spec:
+          replicas: ${schema.spec.redisLeaderReplicas}
+          selector:
+            matchLabels:
+              app: redis
+          template:
+            metadata:
+              labels:
+                app: redis
+                role: leader
+                tier: backend
+            spec:
+              containers:
+              - name: leader
+                image: ${schema.spec.redisLeaderImage}
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+                ports:
+                - containerPort: 6379
+    - id: redisLeaderSvc
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.spec.redisLeaderSvcName}
+          labels:
+            app: redis
+            role: leader
+            tier: backend
+        spec:
+          ports:
+          - port: ${schema.spec.redisLeaderSvcPort}
+            targetPort: 6379
+          selector:
+            app: redis
+            role: leader
+    - id: redisFollower
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.spec.redisFollowerName}
+          labels:
+            app: redis
+            role: follower
+            tier: backend
+        spec:
+          replicas: ${schema.spec.redisFollowerReplicas}
+          selector:
+            matchLabels:
+              app: redis
+          template:
+            metadata:
+              labels:
+                app: redis
+                role: follower
+                tier: backend
+            spec:
+              containers:
+              - name: follower
+                image: ${schema.spec.redisFollowerImage}
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+                ports:
+                - containerPort: 6379
+    - id: redisFollowerSvc
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.spec.redisFollowerSvcName}
+          labels:
+            app: redis
+            role: follower
+            tier: backend
+        spec:
+          ports:
+          - port: ${schema.spec.redisFollowerSvcPort}
+            targetPort: 6379
+          selector:
+            app: redis
+            role: follower
+    - id: frontend
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.spec.frontendName}
+        spec:
+          replicas: ${schema.spec.frontendReplicas}
+          selector:
+            matchLabels:
+                app: guestbook
+                tier: frontend
+          template:
+            metadata:
+              labels:
+                app: guestbook
+                tier: frontend
+            spec:
+              containers:
+              - name: php-redis
+                image: ${schema.spec.frontendImage}
+                env:
+                - name: GET_HOSTS_FROM
+                  value: "dns"
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 100Mi
+                ports:
+                - containerPort: 80
+    - id: frontendSvc
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: ${schema.spec.frontendSvcName}
+          labels:
+            app: frontend
+            tier: frontend
+        spec:
+          ports:
+          - port: ${schema.spec.frontendSvcPort}
+            targetPort: 80
+          selector:
+            app: frontend
+            tier: frontend
